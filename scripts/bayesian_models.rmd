@@ -1,0 +1,280 @@
+---
+title: "Analysis of Impossible Task"
+author: "Zachary Houghton"
+date: "2025-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(brms)
+```
+
+## Import Data
+### chaewon data
+
+```{r}
+# Get list of all CSV files ending with "_cleaned_data.csv"
+data_dir = "data/Chaewon Coding/"
+
+file_list = list.files(path = data_dir, pattern = "_cleaned_data\\.csv$", full.names = T)
+
+df_list = lapply(file_list, read.csv)
+
+# Combine all dataframes into one
+final_df_chaewon = bind_rows(df_list)  # More efficient than rbind()
+
+
+```
+
+### amanda coding
+```{r}
+# Get list of all CSV files ending with "_cleaned_data.csv"
+data_dir = "data/Amanda Coding/subset"
+
+file_list = list.files(path = data_dir, pattern = "\\.csv$", full.names = T)
+
+df_list = lapply(file_list, read.csv)
+
+# Combine all dataframes into one
+#final_df_amanda = bind_rows(df_list)  # More efficient than rbind()
+
+```
+
+```{r}
+
+final_df_amanda = bind_rows(df_list)  # More efficient than rbind()
+
+final_df_amanda = final_df_amanda %>%
+  mutate(Modifier..1 = na_if(Modifier..1, "")) %>%
+  fill(Modifier..1, .direction = 'down')
+
+final_df_amanda$condition = final_df_amanda$Modifier..1
+
+final_df_amanda = final_df_amanda %>%
+  group_by(Observation.id) %>%
+  mutate(subject = sample(1:10000, size = 1))
+
+final_df_amanda$condition = factor(final_df_amanda$condition)
+final_df_amanda$subject = factor(final_df_amanda$subject)
+
+
+interacting_w_tupperware = final_df_amanda %>%
+  filter(Behavior == 'interacting with tupperware')
+
+final_df_amanda = final_df_amanda %>%
+  filter(!Behavior %in% c('Start', 'End', 'interacting with tupperware')) %>%
+  group_by(subject, condition) %>%
+  summarize(num_help_behaviors = n())
+
+final_df_amanda = final_df_amanda %>%
+  ungroup() %>%
+  mutate(condition_numeric = case_when(
+    condition == 'T1' ~ 1,
+    condition == 'T2' ~ 2,
+    condition == 'T3' ~ 3,
+    condition == 'T4' ~ 4,
+    condition == 'T5' ~ 5
+  ))
+
+
+#levels(final_df_amanda$condition_numeric)
+```
+
+```{r}
+options(contrasts = c("contr.treatment","cont.treatment"))
+
+final_df_amanda$condition = factor(final_df_amanda$condition, levels = c('T5', 'T1', 'T2', 'T3', 'T4'))
+
+m1_condition_factor = brm(num_help_behaviors ~ condition + (condition|subject),
+         data = final_df_amanda,
+         family = poisson(link='log'),
+         warmup = 4000,
+         iter = 8000,
+         chains = 4,
+         cores = 4,
+         file = 'm1'
+         )
+
+
+p1 = plot(conditional_effects(m1_condition_factor), plot = F)[[1]] +
+  theme_bw() +
+  labs(x = 'Condition', y = 'Number of Help Behaviors Demonstrated')
+
+p1
+
+fixefs_m1 = as.data.frame(fixef(m1_condition_factor))
+```
+
+barking and whining dropped:
+
+```{r}
+
+
+final_df_amanda_no_barking_or_whining = bind_rows(df_list) %>%  # More efficient than rbind()
+  filter(!Behavior == 'bark/whine vocalization') %>%
+  filter(!Behavior == 'interacting with tupperware')
+
+final_df_amanda_no_barking_or_whining = final_df_amanda_no_barking_or_whining %>%
+  mutate(Modifier..1 = na_if(Modifier..1, "")) %>%
+  fill(Modifier..1, .direction = 'down')
+
+final_df_amanda_no_barking_or_whining$condition = final_df_amanda_no_barking_or_whining$Modifier..1
+
+final_df_amanda_no_barking_or_whining = final_df_amanda_no_barking_or_whining %>%
+  group_by(Observation.id) %>%
+  mutate(subject = sample(1:10000, size = 1))
+
+final_df_amanda_no_barking_or_whining$condition = factor(final_df_amanda_no_barking_or_whining$condition)
+final_df_amanda_no_barking_or_whining$subject = factor(final_df_amanda_no_barking_or_whining$subject)
+
+final_df_amanda_no_barking_or_whining = final_df_amanda_no_barking_or_whining %>%
+  filter(!Behavior %in% c('Start', 'End')) %>%
+  group_by(subject, condition) %>%
+  summarize(num_help_behaviors = n())
+
+final_df_amanda_no_barking_or_whining = final_df_amanda_no_barking_or_whining %>%
+  ungroup() %>%
+  mutate(condition_numeric = case_when(
+    condition == 'T1' ~ 1,
+    condition == 'T2' ~ 2,
+    condition == 'T3' ~ 3,
+    condition == 'T4' ~ 4,
+    condition == 'T5' ~ 5
+  ))
+  
+
+options(contrasts = c("contr.treatment","cont.treatment"))
+
+final_df_amanda_no_barking_or_whining$condition = factor(final_df_amanda_no_barking_or_whining$condition, levels = c('T5', 'T1', 'T2', 'T3', 'T4'))
+
+m1_condition_factor_no_barking = brm(num_help_behaviors ~ condition + (condition|subject),
+         data = final_df_amanda_no_barking_or_whining,
+         family = poisson(link='log'),
+         warmup = 4000,
+         iter = 8000,
+         chains = 4,
+         cores = 4,
+         file = 'm1_no_barking_or_whining'
+         )
+
+p1_no_barking = plot(conditional_effects(m1_condition_factor_no_barking), plot = F)[[1]] +
+  theme_bw() +
+  labs(x = 'Condition', y = 'Number of Help Behaviors Demonstrated') +
+  scale_x_discrete(limits = c("T1", "T2", "T3", "T4", "T5"))
+
+p1_no_barking
+
+fixefs_m1_no_barking = as.data.frame(fixef(m1_condition_factor_no_barking))
+fixefs_m1_no_barking
+```
+
+
+
+## Analysis 2
+
+```{r}
+button_press_data = readxl::read_xlsx('All Dogs Help Presses and 14 Day Records Summary.xlsx')
+
+button_press_data = button_press_data %>%
+  mutate(number_of_hours_normalized = case_when(
+    !Day %in% c('T1', 'T2', 'T3', 'T4', 'T5') ~ as.double(Number_Hours),
+    Day %in% c('T1', 'T2', 'T3', 'T4', 'T5') ~ 3 / 60
+  )) %>%
+  mutate(rate_of_help_presses = Number_Help_Presses / number_of_hours_normalized)
+
+```
+
+```{r}
+options(contrasts = c("contr.treatment","cont.treatment"))
+
+button_press_data$Day = factor(button_press_data$Day, levels = c('T5', 'T1', 'T2', 'T3', 'T4', '1', '2', '3', '4','5','6','7','8','9','10','11','12','13','14'))
+
+#button_press_data = button_press_data 
+
+button_press_data_m2 = button_press_data %>%
+  mutate(day_condition = case_when(
+    Day %in% c('T1', 'T2', 'T3', 'T4', 'T5') ~ Day,
+    !Day %in% c('T1', 'T2', 'T3', 'T4', 'T5') ~ 'T0'
+  )) %>%
+  group_by(Dog, day_condition) %>%
+  summarize(num_help_buttons = sum(Number_Help_Presses), num_hours = sum(as.double(number_of_hours_normalized)))
+
+
+button_press_data_m2$day_condition = factor(button_press_data_m2$day_condition, levels = c('T5', 'T0', 'T1', 'T2', 'T3', 'T4'))
+
+m2_rate_of_help = brm(num_help_buttons ~ day_condition + offset(log(num_hours)) + (day_condition|Dog),
+         data = button_press_data_m2,
+         family = negbinomial(),
+         warmup = 6000,
+         iter = 12000,
+         chains = 4,
+         cores = 4,
+         file = 'm2_rate_of_help'
+         )
+
+
+p2 = plot(conditional_effects(m2_rate_of_help), plot = F)[[1]] +
+  theme_bw() +
+  labs(x = 'Day', y = 'Rate of Help Button Presses')
+
+p2
+
+fixefs_m2 = as.data.frame(fixef(m2_rate_of_help))
+```
+
+## Interacting with tupperware plot
+
+```{r}
+
+interacting_w_tupperware$condition = interacting_w_tupperware$Modifier..1
+
+interacting_w_tupperware = interacting_w_tupperware %>%
+  group_by(Observation.id) %>%
+  mutate(subject = sample(1:10000, size = 1))
+
+interacting_w_tupperware$condition = factor(interacting_w_tupperware$condition)
+interacting_w_tupperware$subject = factor(interacting_w_tupperware$subject)
+
+interacting_w_tupperware = interacting_w_tupperware %>%
+  filter(!Behavior %in% c('Start', 'End')) %>%
+  group_by(subject, condition) %>%
+  summarize(num_behaviors = n())
+
+interacting_w_tupperware = interacting_w_tupperware %>%
+  ungroup() %>%
+  mutate(condition_numeric = case_when(
+    condition == 'T1' ~ 1,
+    condition == 'T2' ~ 2,
+    condition == 'T3' ~ 3,
+    condition == 'T4' ~ 4,
+    condition == 'T5' ~ 5
+  ))
+  
+
+options(contrasts = c("contr.treatment","cont.treatment"))
+
+interacting_w_tupperware$condition = factor(interacting_w_tupperware$condition, levels = c('T5', 'T1', 'T2', 'T3', 'T4'))
+
+m1_interacting_with_tupperware = brm(num_behaviors ~ condition + (condition|subject),
+         data = interacting_w_tupperware,
+         family = poisson(link='log'),
+         warmup = 4000,
+         iter = 8000,
+         chains = 4,
+         cores = 4,
+         file = 'interacting_with_tupperware'
+         )
+
+p1_interacting_with_tupperware = plot(conditional_effects(m1_interacting_with_tupperware), plot = F)[[1]] +
+  theme_bw() +
+  labs(x = 'Condition', y = 'Number of Help Behaviors Demonstrated') +
+  scale_x_discrete(limits = c("T1", "T2", "T3", "T4", "T5"))
+
+p1_interacting_with_tupperware
+
+fixefs_m1_interacting_with_tupperware = as.data.frame(fixef(m1_interacting_with_tupperware))
+fixefs_m1_interacting_with_tupperware
+```
+
