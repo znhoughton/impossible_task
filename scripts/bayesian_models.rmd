@@ -16,7 +16,7 @@ library(brms)
 
 ```{r}
 # Get list of all CSV files ending with "_cleaned_data.csv"
-data_dir = "data/Chaewon Coding/"
+data_dir = "../data/Chaewon Coding/"
 
 file_list = list.files(path = data_dir, pattern = "_cleaned_data\\.csv$", full.names = T)
 
@@ -31,7 +31,7 @@ final_df_chaewon = bind_rows(df_list)  # More efficient than rbind()
 ### amanda coding
 ```{r}
 # Get list of all CSV files ending with "_cleaned_data.csv"
-data_dir = "data/Amanda Coding/subset"
+data_dir = "../data/Amanda Coding/subset"
 
 file_list = list.files(path = data_dir, pattern = "\\.csv$", full.names = T)
 
