@@ -1,14 +1,16 @@
-# LOAD PACKAGES & DATA 
 library(dplyr)
 library(tidyr)
 library(purrr)
 library(clue)
 library(irr)
 library(ggplot2)
+library(writexl)
+
+
 
 ethogram <- c("alternating gaze", "looking at owner", "positioning in front of owner", 
               "bark/whine vocalization", "interacting with tupperware", "nudging/scratching/paw owner")
-df_all=read.csv("impossible_task_all_behaviors2.csv") %>% filter(Behavior %in% ethogram)%>%
+df_all=read.csv("impossible_task_all_behaviors.csv") %>% filter(Behavior %in% ethogram)%>%
   filter(Behavior != "alternating gaze")
 
 df2 <- df_all %>%
@@ -218,10 +220,10 @@ df_vis <- df_all %>%
     coder        = factor(coder)
   )
 
-# 2. Define a dodge so Amanda/ChaeWon sit side by side
+# Define a dodge so Amanda/ChaeWon sit side by side
 dodge <- position_dodge(width = 0.6)
 
-# 3. Plot: STATE as segments, POINT as dots, colored by match_status
+# Plot: STATE as segments, POINT as dots, colored by match_status
 ggplot(df_vis, aes(group = coder, color = match_status)) +
   # draw state durations
   geom_segment(
@@ -287,16 +289,13 @@ kappa_res <- kappa2(
   wide_match %>% select(Amanda, Chaewon),
   weight = "unweighted")
 
-print(kappa_res)
-
-
 
 actual_matches <- match_table %>%ungroup() %>% select(-trial) %>% 
   # count each matched pair once by looking at Amanda’s side
   filter(matched, coder == "Amanda") %>%
   count(behavior, name = "actual_matches")
 
-# 2. Compute Cohen’s κ for each behavior
+# Compute Cohen’s κ for each behavior
 kappa_by_behavior <- wide_match %>%
   group_by(behavior) %>%
   summarise(
@@ -308,7 +307,7 @@ kappa_by_behavior <- wide_match %>%
     .groups = "drop"
   )
 
-# 2. Add percent‐agreement to your counts_final table
+# Add percent‐agreement to your counts_final table
 counts_final_augmented <- counts_final %>%
   left_join(actual_matches, by = "behavior") %>%
   mutate(
@@ -318,11 +317,11 @@ counts_final_augmented <- counts_final %>%
   ) %>% select(-trial)
 
 
-# 1. Drop the existing “Max Possible Overlap Overall Behaviors” row
+# Drop the existing “Max Possible Overlap Overall Behaviors” row
 counts_base <- counts_final_augmented %>%
   filter(behavior != "Max Possible Overlap Overall Behaviors")
 
-# 2. Recompute the overall summary
+# Recompute the overall summary
 overall_summary <- counts_base %>%
   summarise(
     behavior               = "Overall",
@@ -334,11 +333,8 @@ overall_summary <- counts_base %>%
     percent_agreement      = actual_matches / pmax(Amanda, Chaewon)
   )
 
-# 3. Append the new Overall row
+# Append the new Overall row
 counts_final_with_overall <- bind_rows(counts_base, overall_summary)
-
-# install.packages("writexl")
-library(writexl)
 
 # Write the table to an Excel workbook
 write_xlsx(
@@ -346,15 +342,7 @@ write_xlsx(
   path = "agreement_summary.xlsx"
 )
 
-
-
-
-library(dplyr)
-library(tidyr)
-library(purrr)
-library(irr)
-
-# 1. Define 3-second windows for each trial
+# Define 3-second windows for each trial
 windows <- df_all %>%
   rename(trial = `Observation.id`, t_start = `Start..s.`, t_stop = `Stop..s.`) %>%
   group_by(trial) %>%
@@ -364,7 +352,7 @@ windows <- df_all %>%
   mutate(window_end = pmin(window_start + 3, max_time)) %>%
   select(trial, window_start, window_end)
 
-# 2. Expand to every (trial, window, behavior, coder) slot
+# Expand to every (trial, window, behavior, coder) slot
 ethogram <- c("looking at owner", "positioning in front of owner",
               "bark/whine vocalization", "interacting with tupperware")
 coders   <- c("Amanda", "Chaewon")
@@ -373,7 +361,7 @@ slots <- windows %>%
   expand(trial, window_start, window_end,
          behavior = ethogram, coder = coders)
 
-# 3. Flag presence if any event of that behavior/coder overlaps the window
+# Flag presence if any event of that behavior/coder overlaps the window
 presence <- slots %>%
   left_join(df_all %>%
               rename(trial = `Observation.id`, t_start = `Start..s.`, t_stop = `Stop..s.`),
@@ -383,11 +371,11 @@ presence <- slots %>%
   group_by(trial, window_start, window_end, behavior, coder) %>%
   summarise(present = any(overlap, na.rm = TRUE), .groups = "drop")
 
-# 4. Pivot to wide for Cohen’s κ
+# Pivot to wide for Cohen’s κ
 presence_wide <- presence %>%
   pivot_wider(names_from = coder, values_from = present, values_fill = list(present = FALSE))
 
-# 5. Compute κ per behavior across all windows & trials
+# Compute κ per behavior across all windows & trials
 kappa_by_behavior <- presence_wide %>%
   group_by(behavior) %>%
   summarise(
@@ -395,5 +383,3 @@ kappa_by_behavior <- presence_wide %>%
                    weight = "unweighted")$value,
     .groups = "drop"
   )
-
-print(kappa_by_behavior)
