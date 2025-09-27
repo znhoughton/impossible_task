@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # This should be the folder containing  "all_subjects_clean.csv"
-data_folder = "/data/Amanda"
+data_folder = "/data/merged_df"
 
 # LOAD DATA
 file_path = f"{data_folder}/all_subjects_clean.csv"
