@@ -10,7 +10,7 @@ library(writexl)
 
 ethogram <- c("alternating gaze", "looking at owner", "positioning in front of owner", 
               "bark/whine vocalization", "interacting with tupperware", "nudging/scratching/paw owner")
-df_all=read.csv("impossible_task_all_behaviors.csv") %>% filter(Behavior %in% ethogram)%>%
+df_all=read.csv("data/merged_df/all_behaviors_amanda_chaewon.csv") %>% filter(Behavior %in% ethogram)%>%
   filter(Behavior != "alternating gaze")
 
 df2 <- df_all %>%
