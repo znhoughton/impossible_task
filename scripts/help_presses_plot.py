@@ -2,11 +2,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-# This should be the folder containing  "all_dogs_cleaned_master.csv"
-data_folder = "/data"
+# This should be the folder containing  "all_subjects_clean.csv"
+data_folder = "/data/Amanda"
 
 # LOAD DATA
-file_path = f"{data_folder}/all_dogs_cleaned_master.csv"
+file_path = f"{data_folder}/all_subjects_clean.csv"
 
 try:
     all_data = pd.read_csv(file_path)
